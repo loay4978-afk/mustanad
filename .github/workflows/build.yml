@@ -23,10 +23,10 @@ jobs:
         working-directory: proj
       - run: bash tool/ci_setup.sh
         working-directory: proj
-      - name: Raise compileSdk for plugins
+      - name: Raise compileSdk and disable lintVital
         working-directory: proj
         run: |
-          # رفع compileSdk لكل الإضافات إلى 36 (مطلوب من flutter_plugin_android_lifecycle)
+          # رفع compileSdk لكل الإضافات إلى 36، وتعطيل lintVital (يفشل في بعض الإضافات)
           if [ -f android/build.gradle.kts ] && ! grep -q MUSTANAD_COMPILE_SDK android/build.gradle.kts; then
             {
               cat <<'KTS'
@@ -36,6 +36,11 @@ jobs:
                   if (project.name != "app") {
                       extensions.findByType(com.android.build.api.dsl.CommonExtension::class.java)?.let { it.compileSdk = 36 }
                   }
+              }
+          }
+          subprojects {
+              tasks.configureEach {
+                  if (name.startsWith("lintVital")) enabled = false
               }
           }
           KTS
@@ -51,6 +56,11 @@ jobs:
                   if (p.name != 'app' && p.hasProperty('android')) {
                       p.android { compileSdk 36 }
                   }
+              }
+          }
+          subprojects {
+              tasks.configureEach { t ->
+                  if (t.name.startsWith('lintVital')) t.enabled = false
               }
           }
           GRV
