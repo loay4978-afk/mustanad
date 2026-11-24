@@ -1,0 +1,39 @@
+name: Build APK
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: unzip -q "$(ls *.zip | head -1)" -d proj
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter create . --project-name mustanad --org com.mustanad
+        working-directory: proj
+      - run: bash tool/ci_setup.sh
+        working-directory: proj
+      - name: Download OCR language data (Arabic, English, German)
+        working-directory: proj
+        run: |
+          mkdir -p assets/tessdata
+          for l in ara eng deu; do
+            curl -fL --retry 3 -o assets/tessdata/$l.traineddata https://github.com/tesseract-ocr/tessdata_fast/raw/main/$l.traineddata
+          done
+      - run: flutter pub get
+        working-directory: proj
+      - run: dart run flutter_launcher_icons
+        working-directory: proj
+      - run: flutter build apk --release --no-shrink --target-platform android-arm,android-arm64
+        working-directory: proj
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mustanad-apk
+          path: proj/build/app/outputs/flutter-apk/app-release.apk
+          
