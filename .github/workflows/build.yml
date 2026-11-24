@@ -23,6 +23,41 @@ jobs:
         working-directory: proj
       - run: bash tool/ci_setup.sh
         working-directory: proj
+      - name: Raise compileSdk for plugins
+        working-directory: proj
+        run: |
+          # رفع compileSdk لكل الإضافات إلى 36 (مطلوب من flutter_plugin_android_lifecycle)
+          if [ -f android/build.gradle.kts ] && ! grep -q MUSTANAD_COMPILE_SDK android/build.gradle.kts; then
+            {
+              cat <<'KTS'
+          // MUSTANAD_COMPILE_SDK
+          subprojects {
+              afterEvaluate {
+                  if (project.name != "app") {
+                      extensions.findByType(com.android.build.api.dsl.CommonExtension::class.java)?.let { it.compileSdk = 36 }
+                  }
+              }
+          }
+          KTS
+              cat android/build.gradle.kts
+            } > /tmp/root_build.kts
+            cp /tmp/root_build.kts android/build.gradle.kts
+          elif [ -f android/build.gradle ] && ! grep -q MUSTANAD_COMPILE_SDK android/build.gradle; then
+            {
+              cat <<'GRV'
+          // MUSTANAD_COMPILE_SDK
+          subprojects {
+              afterEvaluate { p ->
+                  if (p.name != 'app' && p.hasProperty('android')) {
+                      p.android { compileSdk 36 }
+                  }
+              }
+          }
+          GRV
+              cat android/build.gradle
+            } > /tmp/root_build.gradle
+            cp /tmp/root_build.gradle android/build.gradle
+          fi
       - name: Download OCR language data (Arabic, English, German)
         working-directory: proj
         run: |
@@ -40,4 +75,3 @@ jobs:
         with:
           name: mustanad-apk
           path: proj/build/app/outputs/flutter-apk/app-release.apk
-          
